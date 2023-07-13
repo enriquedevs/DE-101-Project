@@ -3,24 +3,28 @@ import json
 import pandas as pd
 import numpy as np
 import os
-from os import path
-from tqdm import tqdm, trange
-from time import sleep
+import shutil
+
+from tqdm import tqdm
 from bs4 import BeautifulSoup  
-from datetime import date, datetime
+from datetime import datetime
 
 class NikeScrAPI:   
     '''
     Uses nike's website API to scrape data.
         NOTE: for production set max_pages = 200
     '''
-    def __init__(self, country='US', 
-                 lan='en', max_pages=1, 
-                 get_description=True, 
-                 single_category=None, 
-                 debug=False, 
-                 filename='nike',
-                 path='data', ):
+    def __init__(
+        self,
+        country='US', 
+        lan='en',
+        max_pages=1, 
+        get_description=True, 
+        single_category=None, 
+        debug=False, 
+        filename='nike',
+        path='data'
+    ):
         
         self.__count = 24
         self.__page_size = 24
@@ -150,7 +154,6 @@ class NikeScrAPI:
         except AttributeError:
             return np.NaN
 
-
     def __getDescription(self,indiv_shoe_soup): 
         '''
         tries to get the short description of a given product
@@ -163,7 +166,7 @@ class NikeScrAPI:
 
         return description
             
-    def getDescAndRatings(self, url):
+    def __getDescAndRatings(self, url):
         '''
         gets description and ratings at once, from product url
         '''
@@ -180,7 +183,7 @@ class NikeScrAPI:
                 
         return short_desc, rating
     
-    def updateDescriptionAndRatings(self, df, category):
+    def __updateDescriptionAndRatings(self, df, category):
         '''
         iterates over a dataframe to get description and rating for each shoe,from product URL
         '''        
@@ -222,6 +225,7 @@ class NikeScrAPI:
         
         # Nike website's API
         url = f'https://api.nike.com/cic/browse/v2?queryid=products&anonymousId=241B0FAA1AC3D3CB734EA4B24C8C910D&country={country}&endpoint=%2Fproduct_feed%2Frollup_threads%2Fv2%3Ffilter%3Dmarketplace({country})%26filter%3Dlanguage({country_language})%26filter%3DemployeePrice(true)%26searchTerms%3D{query}%26anchor%3D{anchor}%26consumerChannelId%3Dd9a5bc42-4b9c-4976-858a-f159cf99c647%26count%3D{count}&language={country_language}&localizedRangeStr=%7BlowestPrice%7D%E2%80%94%7BhighestPrice%7D'
+        print(url)
 
         # Calls API 
         html, exception = self.__requests_call('get',url)
@@ -390,7 +394,7 @@ class NikeScrAPI:
                             short_desc = np.NaN
                             rating = np.NaN
                             if self.__full_description:
-                                short_desc, rating = self.getDescAndRatings(prod_url)
+                                short_desc, rating = self.__getDescAndRatings(prod_url)
 
                             # Retrieves features for each color 
                             for k, color in enumerate(item['colorways']):
@@ -402,6 +406,7 @@ class NikeScrAPI:
                           
             # writes intermediate file
             self.__writeIntermediateFile(category)      
+
         
         # Remove Dupes
         shoes = pd.DataFrame(self.shoeDict)
@@ -415,6 +420,9 @@ class NikeScrAPI:
         
         file_full_path = os.path.join(f'{self.__filePrefix}.csv', self.__path) 
         print(f"final dataset file saved as '{file_full_path}'")
+
+        print("removing temporal files")
+        shutil.rmtree(f'{self.__path}/tmp')
         
         return shoes
 
